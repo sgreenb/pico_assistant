@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 import base64
 import csv
 from difflib import SequenceMatcher
+import os
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 

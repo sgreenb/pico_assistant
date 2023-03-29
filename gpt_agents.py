@@ -1,4 +1,6 @@
 import openai
+from email_interface import send_email
+from spotify_interface import spotify_agent
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -19,14 +21,12 @@ class Chat:
         reply_content = completion.choices[0].message.content
         return reply_content
 
-#Checks a user input to see if we need to make a call, send an SMS or email, or create an event.
+#Checks a user input to see if we need to do some external task.
 #Uses instruct-gpt model so GPT-4 is only called when necessary.
 def instruct_agent(prompt):
     keywords = [
-        "make a call", "call", "phone",
+        "play", "spotify", "volume", "next", "next song", "pause", "music", "song",
         "send an email", "email",
-        "send a text", "send an sms", "text", "sms",
-        "create an event", "add to calendar", "calendar event",
     ]
     response = openai.Completion.create(
         engine="davinci-instruct-beta",
@@ -54,17 +54,18 @@ class Executive:
         #dictionary used to call functions depending on output of executive
         agent_dict = { 
                 "send_email": send_email,
+                "spotify_agent": spotify_agent,
                 }
         completion = openai.ChatCompletion.create(
             model = self.model,
             temperature = 0,
             messages=[
-                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. You can only output: ['send_email', 'chat']"},
+                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. You can only output: ['send_email', 'spotify_agent']"},
                     {"role":"user", "content": prompt}
                     ] 
         )
         reply_content = completion.choices[0].message.content
-        if "send_email" in reply_content:
+        if "send_email" or "spotify_agent" in reply_content:
             agent_response = agent_dict[reply_content](prompt)
             return agent_response #response should be status of agent attempt to complete task
         else:
@@ -89,10 +90,18 @@ def main():
             if len(message_history) > max_history:
                 message_history.insert(-max_history + 1, system_message[0])
             message_history = message_history[-max_history:]
-            gpt4_chat = Chat("gpt-4")
-            response = gpt4_chat.chat(message_history)
-            message_history.append({"role": "assistant", "content": response})
-            print(f"Pico: {response}\n")
+            #check user input with instruct_agent
+            if instruct_agent(message_history[-1].get("content")):
+                print("Executive needed!")
+                print(message_history[-1].get("content"))
+                executive = Executive("gpt-4")
+                agent_response = executive.identify_task(message_history[-1].get("content"))
+                print(agent_response)
+            else:
+                gpt4_chat = Chat("gpt-4")    
+                response = gpt4_chat.chat(message_history)
+                message_history.append({"role": "assistant", "content": response})
+                print(f"Pico: {response}\n")
         
 if __name__ == "__main__":
     main()

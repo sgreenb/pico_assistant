@@ -9,25 +9,28 @@ import base64
 import os
 import csv
 from difflib import SequenceMatcher
-import gradio as gr
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
 #Chat agent
-def gpt4_chat(messages):
-    response = openai.ChatCompletion.create(
-        model="gpt-4",  
-        messages=messages,
-        max_tokens=150,
-        n=1,
-        stop=None,
-        temperature=0.7,
-    )  
-    reply = response.choices[0].message['content'].strip()
-    return reply
+class Chat:
+    def __init__(self, model):
+        openai.api_key = open("openai_key.txt", "r").read().strip("\n")
+        self.model = model
+    def __str__(self):
+        name = "Chat Agent [" + self.model + "]"
+        return name
+    def chat(self, messages):
+        completion = openai.ChatCompletion.create(
+            model = self.model,
+            temperature = 0.7,
+            messages = messages
+        )
+        reply_content = completion.choices[0].message.content
+        return reply_content
 
-#checks a user input to see if we need to make a call, send an SMS or email, or create an event.
-#Uses instruct-gpt model so GPT-4 is only called when necessary
+#Checks a user input to see if we need to make a call, send an SMS or email, or create an event.
+#Uses instruct-gpt model so GPT-4 is only called when necessary.
 def instruct_agent(prompt):
     keywords = [
         "make a call", "call", "phone",
@@ -146,13 +149,29 @@ def send_email(prompt):
         send_message = None
     return status
 
+def main():
+    print("Welcome to the Pico Assistant interface!")
+    print("Type 'quit' to exit the chat.\n")
 
+    message_history = []
+    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. Your name is Pico."}]
+    message_history.append(system_message[0])
+    max_history = 5  # Adjust this value to limit the number of messages considered
 
-
-
-
-
-
-#send_email("email Phillip Smith and tell them that I will be an hour late to our meeting")
-#exec = Executive("gpt-4")
-#print(exec)
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == 'quit':
+            break
+        else:
+            message_history.append({"role": "user", "content": user_input})
+            #Keeps inserting system message as first message when max history is exceeded.
+            if len(message_history) > max_history:
+                message_history.insert(-max_history + 1, system_message[0])
+            message_history = message_history[-max_history:]
+            gpt4_chat = Chat("gpt-4")
+            response = gpt4_chat.chat(message_history)
+            message_history.append({"role": "assistant", "content": response})
+            print(f"Pico: {response}\n")
+        
+if __name__ == "__main__":
+    main()

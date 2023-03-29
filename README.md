@@ -11,3 +11,5 @@ The design principle involves linking multiple LLM agents, simple functions and 
 6. Play music on request.
 7. Interact with IoT devices.
 8. Make phone calls on request.
+9. Implement gradio interface.
+

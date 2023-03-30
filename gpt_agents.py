@@ -90,10 +90,8 @@ def main():
             if len(message_history) > max_history:
                 message_history.insert(-max_history + 1, system_message[0])
             message_history = message_history[-max_history:]
-            #check user input with instruct_agent
+            #check user input with instruct_agent, if executive is needed, call executive on user input and return result
             if instruct_agent(message_history[-1].get("content")):
-                print("Executive needed!")
-                print(message_history[-1].get("content"))
                 executive = Executive("gpt-4")
                 agent_response = executive.identify_task(message_history[-1].get("content"))
                 print(agent_response)

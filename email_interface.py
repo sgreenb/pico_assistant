@@ -78,5 +78,4 @@ def send_email(prompt):
     except HttpError as error:
         print(F'An error occurred: {error}')
         status = "An error occured, message not sent."
-        send_message = None
     return status

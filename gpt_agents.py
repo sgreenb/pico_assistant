@@ -23,6 +23,7 @@ class Chat:
 
 #Checks a user input to see if we need to do some external task.
 #Uses instruct-gpt model so GPT-4 is only called when necessary.
+#Need to check if this is actually worthwhile.
 def instruct_agent(prompt):
     keywords = [
         "play", "spotify", "volume", "next", "next song", "pause", "music", "song",
@@ -37,7 +38,7 @@ def instruct_agent(prompt):
         temperature=0,
     )
     identified_tasks = response.choices[0].text.strip().lower().split(',')
-    # Check if any identified tasks are in the list of keywords
+    #Check if any identified tasks are in the list of keywords
     for task in identified_tasks:
         if task.strip() in keywords:
             return True
@@ -51,7 +52,7 @@ class Executive:
         name = "Executive Agent [" + self.model + "]"
         return name
     def identify_task(self, prompt):
-        #dictionary used to call functions depending on output of executive
+        #Dictionary used to call functions depending on output of executive
         agent_dict = { 
                 "send_email": send_email,
                 "spotify_agent": spotify_agent,
@@ -67,7 +68,7 @@ class Executive:
         reply_content = completion.choices[0].message.content
         if "send_email" or "spotify_agent" in reply_content:
             agent_response = agent_dict[reply_content](prompt)
-            return agent_response #response should be status of agent attempt to complete task
+            return agent_response #Response is status recieved from agent attempting to a complete task.
         else:
             return False #False means default to chat
 
@@ -76,9 +77,9 @@ def main():
     print("Type 'quit' to exit the chat.\n")
 
     message_history = []
-    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. Your name is Pico."}]
+    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. Your name is Pico. You can chat, send emails, and interact with Spotify"}]
     message_history.append(system_message[0])
-    max_history = 5  # Adjust this value to limit the number of messages considered
+    max_history = 10  # Adjust this value to limit the number of messages considered
 
     while True:
         user_input = input("You: ")
@@ -90,13 +91,14 @@ def main():
             if len(message_history) > max_history:
                 message_history.insert(-max_history + 1, system_message[0])
             message_history = message_history[-max_history:]
-            #check user input with instruct_agent, if executive is needed, call executive on user input and return result
+            #Check user input with instruct_agent, if executive is needed, call executive on user input and return result.
             if instruct_agent(message_history[-1].get("content")):
-                executive = Executive("gpt-4")
+                executive = Executive("gpt-4") #Test to see how well a davinci-instruct-beta model works here. Maybe elimante one layer.
                 agent_response = executive.identify_task(message_history[-1].get("content"))
                 print(agent_response)
+            #If executive not needed, respond with chat.
             else:
-                gpt4_chat = Chat("gpt-4")    
+                gpt4_chat = Chat("gpt-4")
                 response = gpt4_chat.chat(message_history)
                 message_history.append({"role": "assistant", "content": response})
                 print(f"Pico: {response}\n")

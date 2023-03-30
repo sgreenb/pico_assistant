@@ -24,9 +24,10 @@ def open_spotify_windows():
     if not is_spotify_running():
         spotify_path = spotify_keys[2]
         os.startfile(spotify_path)
-        time.sleep(1)
+    else:
+        pass
 
-def play_song(song_query, client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id = spotify_keys[3]):
+def play_song(song_query, client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id=spotify_keys[3]):
     # Set up the Spotify API client
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id,
                                                    client_secret=client_secret,
@@ -50,6 +51,50 @@ def play_song(song_query, client_id=spotify_keys[0], client_secret=spotify_keys[
     except:
         print("No device found")
 
+def play_top_result(query, client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id=spotify_keys[3]):
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id,
+                                                   client_secret=client_secret,
+                                                   redirect_uri="http://localhost:3000",
+                                                   scope="user-modify-playback-state,user-read-playback-state"))
+
+    content_types = ["track", "album", "artist", "playlist"]
+    top_results = {}
+
+    # Search for each content type and store the top result
+    for content_type in content_types:
+        results = sp.search(q=query, limit=1, type=content_type)
+        if results[content_type + 's']['items']:
+            item = results[content_type + 's']['items'][0]
+            if content_type == 'artist':
+                score = item['followers']['total']
+            elif content_type == 'playlist':
+                score = item['tracks']['total']
+            else:
+                score = item.get('popularity', 0)  # Use default value of 0 if 'popularity' field is missing
+            top_results[content_type] = (item, score)
+
+    # Find the top result with the highest popularity
+    top_content, _ = max(top_results.values(), key=lambda x: x[1])
+    top_content_type = [k for k, v in top_results.items() if v[0] == top_content][0]
+    top_content_uri = top_content['uri']
+
+    try:
+        sp.transfer_playback(device_id)
+        time.sleep(1)
+        if top_content_type == "track":
+            sp.start_playback(device_id=device_id, uris=[top_content_uri])
+        elif top_content_type == "artist":
+            # Play the artist's top tracks
+            top_tracks = sp.artist_top_tracks(top_content_uri)
+            track_uris = [track['uri'] for track in top_tracks['tracks']]
+            sp.start_playback(device_id=device_id, uris=track_uris)
+        elif top_content_type in ["album", "playlist"]:
+            sp.start_playback(device_id=device_id, context_uri=top_content_uri)
+        else:
+            print("Content type not supported for playback")
+    except:
+        print("No device found")
+
 def control_playback(action, value=None,client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id=spotify_keys[3]):
     # Set up the Spotify API client
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id,
@@ -65,18 +110,38 @@ def control_playback(action, value=None,client_id=spotify_keys[0], client_secret
         sp.pause_playback(device_id=device_id)
     elif action == 'next':
         sp.next_track(device_id=device_id)
+    elif action == 'resume':
+        sp.start_playback(device_id=device_id)
     else:
-        print("Invalid action. Please provide a valid action: 'volume', 'pause', or 'next'.")
+        print("Invalid action. Please provide a valid action: 'volume', 'pause', 'resume, or 'next'.")
 
 def spotify_agent(prompt):
     completion = openai.ChatCompletion.create(
     model = "gpt-4",
             temperature = 0,
             messages=[
-                    {"role":"system", "content": "You identify a song, playlist, or artist based on a user request. The output must be in the format: 'Song name - Artist' or 'Artist'"},
+                    {"role":"system", "content": "You control a music app based on a user request.\
+                     You reply with a song name or artist to be played, or an action to be taken.\
+                     If the user wants to play a song or artist reply in the format: 'Song name - Artist' or 'Artist'.\
+                     If the user wants to change the volume reply in the format: 'volume | volume level' where the volume level is a number between 1 and 100.\
+                     If the user wants to pause the song reply: 'pause'.\
+                     If the user wants to resume or unpause a song reply: 'resume'.\
+                     If the user wants to play the next song reply: 'next'" 
+                    },
                     {"role":"user", "content": prompt},
                     ] 
         )
-    spotify_query = completion.choices[0].message.content
+    reply_content = completion.choices[0].message.content
     open_spotify_windows()
-    play_song(spotify_query)
+    if "volume" in reply_content:
+        volume_data = reply_content.strip().split('|')
+        volume_level = int(volume_data[1])
+        control_playback("volume", volume_level)
+    elif reply_content == "pause":
+        control_playback("pause")
+    elif reply_content == "next":
+        control_playback("next")
+    elif reply_content == "resume":
+        control_playback("resume")
+    else:
+        play_top_result(reply_content)

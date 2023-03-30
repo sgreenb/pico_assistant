@@ -1,4 +1,5 @@
 import openai
+import time
 from email_interface import send_email
 from spotify_interface import spotify_agent
 
@@ -20,6 +21,20 @@ class Chat:
         )
         reply_content = completion.choices[0].message.content
         return reply_content
+    def stream_chat(self, messages, delay_time=0.01):
+        response = openai.ChatCompletion.create(
+            model=self.model,
+            temperature=0.7,
+            messages=messages,
+            stream=True
+        )
+        reply_content = ''
+        for event in response:
+            print(reply_content, end='', flush=True)
+            event_text = event['choices'][0]['delta']
+            reply_content = event_text.get('content', '')
+            time.sleep(delay_time)
+        return reply_content    
 
 #Checks a user input to see if we need to do some external task.
 #Uses instruct-gpt model so GPT-4 is only called when necessary.
@@ -44,6 +59,19 @@ def instruct_agent(prompt):
             return True
     return False
 
+#faster alternative to instruct_agent
+def is_exec_needed(prompt):
+    keywords = [
+            "play", "spotify", "volume", "next", "next song", "pause", "music", "song",
+            "send an email", "email",
+            "sms", "text", "message"
+    ]
+    prompt = prompt.lower()
+    for keyword in keywords:
+        if keyword in prompt:
+            return True
+    return False
+
 class Executive:
     def __init__(self, model):
         openai.api_key = open("openai_key.txt", "r").read().strip("\n")
@@ -56,19 +84,20 @@ class Executive:
         agent_dict = { 
                 "send_email": send_email,
                 "spotify_agent": spotify_agent,
+                "send_sms": False #add this later
                 }
         completion = openai.ChatCompletion.create(
             model = self.model,
             temperature = 0,
             messages=[
-                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. You can only output: ['send_email', 'spotify_agent']"},
+                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. You can output: ['send_email', 'spotify_agent', 'send_sms'] to fulfill a request, otherwise reply: 'chat'"},
                     {"role":"user", "content": prompt}
                     ] 
         )
         reply_content = completion.choices[0].message.content
         if "send_email" or "spotify_agent" in reply_content:
             agent_response = agent_dict[reply_content](prompt)
-            return agent_response #Response is status recieved from agent attempting to a complete task.
+            #return agent_response #Response is status recieved from agent attempting to a complete task.
         else:
             return False #False means default to chat
 
@@ -91,17 +120,25 @@ def main():
             if len(message_history) > max_history:
                 message_history.insert(-max_history + 1, system_message[0])
             message_history = message_history[-max_history:]
-            #Check user input with instruct_agent, if executive is needed, call executive on user input and return result.
-            if instruct_agent(message_history[-1].get("content")):
-                executive = Executive("gpt-4") #Test to see how well a davinci-instruct-beta model works here. Maybe elimante one layer.
+            #Check user input, if executive is needed, call executive on user input and return result.
+            if is_exec_needed(message_history[-1].get("content")):
+                executive = Executive("gpt-4")
                 agent_response = executive.identify_task(message_history[-1].get("content"))
-                print(agent_response)
+                if agent_response == False:
+                    print("Pico: ", end='', flush=True)
+                    gpt4_chat = Chat("gpt-4")
+                    response = gpt4_chat.stream_chat(message_history)
+                    message_history.append({"role": "assistant", "content": response})
+                    print(f"\n")
+                else:
+                    print(agent_response)
             #If executive not needed, respond with chat.
             else:
+                print("Pico: ", end='', flush=True)
                 gpt4_chat = Chat("gpt-4")
-                response = gpt4_chat.chat(message_history)
+                response = gpt4_chat.stream_chat(message_history)
                 message_history.append({"role": "assistant", "content": response})
-                print(f"Pico: {response}\n")
+                print(f"\n")
         
 if __name__ == "__main__":
     main()

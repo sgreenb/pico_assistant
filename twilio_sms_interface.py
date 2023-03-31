@@ -27,7 +27,7 @@ def find_best_matching_contact(name, contacts):
         if similarity > best_similarity:
             best_similarity = similarity
             best_match = contact_name
-    return best_match if best_similarity > 0.5 else None
+    return best_match if best_similarity > 0.3 else None
 
 def send_sms(to, body):    
     client = Client(account_sid, auth_token)

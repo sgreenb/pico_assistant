@@ -2,6 +2,7 @@ import openai
 import time
 from email_interface import send_email
 from spotify_interface import spotify_agent
+from twilio_sms_interface import sms_agent
 import speech_recognition as sr
 from whisper import Whisper
 
@@ -62,7 +63,7 @@ class Executive:
         agent_dict = { 
                 "send_email": send_email,
                 "spotify_agent": spotify_agent,
-                "send_sms": False #add this later
+                "send_sms": sms_agent,
                 }
         completion = openai.ChatCompletion.create(
             model = self.model,
@@ -73,7 +74,7 @@ class Executive:
                     ] 
         )
         reply_content = completion.choices[0].message.content
-        if "send_email" or "spotify_agent" in reply_content:
+        if "send_email" or "spotify_agent" or "send_sms" in reply_content:
             agent_response = agent_dict[reply_content](prompt)
             #return agent_response #Response is status recieved from agent attempting to a complete task.
         else:

@@ -1,6 +1,6 @@
 This project is a smart assistant à la Siri or Alexa, implemented with large langauge models (LLMs) from OpenAI such as GPT-3 and GPT-4.
 
-The design principle involves linking multiple LLM agents, simple functions and API calls to make a smart assistant that can chat an interact with the world.
+The design principle involves linking multiple LLM agents, simple functions, and API calls to make a smart assistant that can chat and interact with the world.
 
 ## Functionality Goals
 1. Chat in natural language, using speech recognition.

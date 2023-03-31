@@ -34,16 +34,17 @@ def play_song(song_query, client_id=spotify_keys[0], client_secret=spotify_keys[
                                                    client_secret=client_secret,
                                                    redirect_uri="http://localhost:3000",
                                                    scope="user-modify-playback-state,user-read-playback-state"))
-    
     # Search for the song
-    results = sp.search(q=song_query, limit=1, type='track')
+    results = sp.search(q=song_query, limit=3, type='track')  # Increase the limit to get more results
     if not results['tracks']['items']:
         print("No song found")
         return
-
+    # Filter the results based on popularity
+    popular_songs = sorted(results['tracks']['items'], key=lambda x: x['popularity'], reverse=True)
+    song_uri = popular_songs[0]['uri']  # Get the URI of the most popular song
+    
     # Get the song's URI
     song_uri = results['tracks']['items'][0]['uri']
-
     # Check if there is a device available for playback
     try:
         sp.transfer_playback(device_id)
@@ -52,49 +53,38 @@ def play_song(song_query, client_id=spotify_keys[0], client_secret=spotify_keys[
     except:
         print("No device found")
 
-def play_top_result(query, client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id=spotify_keys[3]):
+def play_item(search_query, search_type='track', client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id=spotify_keys[3]):
+    # Set up the Spotify API client
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id,
                                                    client_secret=client_secret,
                                                    redirect_uri="http://localhost:3000",
                                                    scope="user-modify-playback-state,user-read-playback-state"))
 
-    content_types = ["track", "album", "artist", "playlist"]
-    top_results = {}
+    # Search for the item
+    results = sp.search(q=search_query, limit=1, type=search_type)
+    if not results[search_type + 's']['items']:
+        print(f"No {search_type} found")
+        return
 
-    # Search for each content type and store the top result
-    for content_type in content_types:
-        results = sp.search(q=query, limit=1, type=content_type)
-        if results[content_type + 's']['items']:
-            item = results[content_type + 's']['items'][0]
-            if content_type == 'artist':
-                score = item['followers']['total']
-            elif content_type == 'playlist':
-                score = item['tracks']['total']
-            else:
-                score = item.get('popularity', 0)  # Use default value of 0 if 'popularity' field is missing
-            top_results[content_type] = (item, score)
+    # Get the item's URI
+    item_uri = results[search_type + 's']['items'][0]['uri']
 
-    # Find the top result with the highest popularity
-    top_content, _ = max(top_results.values(), key=lambda x: x[1])
-    top_content_type = [k for k, v in top_results.items() if v[0] == top_content][0]
-    top_content_uri = top_content['uri']
-
+    # Check if there is a device available for playback
     try:
         sp.transfer_playback(device_id)
-        time.sleep(1) #was 1 before
-        if top_content_type == "track":
-            sp.start_playback(device_id=device_id, uris=[top_content_uri])
-        elif top_content_type == "artist":
-            # Play the artist's top tracks
-            top_tracks = sp.artist_top_tracks(top_content_uri)
+        time.sleep(1)  # Wait for the transfer to complete
+
+        if search_type == 'track':
+            sp.start_playback(device_id=device_id, uris=[item_uri])
+        elif search_type == 'artist':
+            top_tracks = sp.artist_top_tracks(item_uri)
             track_uris = [track['uri'] for track in top_tracks['tracks']]
             sp.start_playback(device_id=device_id, uris=track_uris)
-        elif top_content_type in ["album", "playlist"]:
-            sp.start_playback(device_id=device_id, context_uri=top_content_uri)
         else:
-            print("Content type not supported for playback")
-    except:
-        print("No device found")
+            print("Invalid search type")
+            return
+    except Exception as e:
+        print(f"Error during playback: {e}")
 
 def control_playback(action, value=None,client_id=spotify_keys[0], client_secret=spotify_keys[1], device_id=spotify_keys[3]):
     # Set up the Spotify API client
@@ -134,7 +124,7 @@ def spotify_agent(prompt):
         )
     reply_content = completion.choices[0].message.content
     open_spotify_windows()
-    if "volume" in reply_content:
+    if "|" in reply_content:
         volume_data = reply_content.strip().split('|')
         volume_level = int(volume_data[1])
         control_playback("volume", volume_level)
@@ -144,5 +134,7 @@ def spotify_agent(prompt):
         control_playback("next")
     elif reply_content == "resume":
         control_playback("resume")
+    elif "-" in reply_content:
+        play_song(reply_content)
     else:
-        play_top_result(reply_content)
+        play_item(reply_content, search_type="artist")

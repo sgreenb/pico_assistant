@@ -2,6 +2,8 @@ import openai
 import time
 from email_interface import send_email
 from spotify_interface import spotify_agent
+import speech_recognition as sr
+from whisper import Whisper
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -34,39 +36,15 @@ class Chat:
             event_text = event['choices'][0]['delta']
             reply_content = event_text.get('content', '')
             time.sleep(delay_time)
-        return reply_content    
+        return reply_content
 
-#Checks a user input to see if we need to do some external task.
-#Uses instruct-gpt model so GPT-4 is only called when necessary.
-#Need to check if this is actually worthwhile.
-def instruct_agent(prompt):
-    keywords = [
-        "play", "spotify", "volume", "next", "next song", "pause", "music", "song",
-        "send an email", "email",
-    ]
-    response = openai.Completion.create(
-        engine="davinci-instruct-beta",
-        prompt=f"Given the following user input, identify if any of these tasks are requested: {', '.join(keywords)}.\n\nUser input: {prompt}\n\nIdentified tasks:",
-        max_tokens=50,
-        n=1,
-        stop=None,
-        temperature=0,
-    )
-    identified_tasks = response.choices[0].text.strip().lower().split(',')
-    #Check if any identified tasks are in the list of keywords
-    for task in identified_tasks:
-        if task.strip() in keywords:
-            return True
-    return False
-
-#faster alternative to instruct_agent
 def is_exec_needed(prompt):
     keywords = [
-            "play", "spotify", "volume", "next", "next song", "pause", "music", "song",
+            "play", "spotify", "volume", "next", "next song", "pause", "resume", "unpause", "playing", "music", "song",
             "send an email", "email",
             "sms", "text", "message"
     ]
-    prompt = prompt.lower()
+    prompt = prompt.lower().strip()
     for keyword in keywords:
         if keyword in prompt:
             return True
@@ -90,7 +68,7 @@ class Executive:
             model = self.model,
             temperature = 0,
             messages=[
-                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. You can output: ['send_email', 'spotify_agent', 'send_sms'] to fulfill a request, otherwise reply: 'chat'"},
+                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. The spotify_agent can search for music or artists, play and pause songs, or go to the next song. You can output: ['send_email', 'spotify_agent', 'send_sms'] to fulfill a request, otherwise reply: 'chat'"},
                     {"role":"user", "content": prompt}
                     ] 
         )
@@ -101,7 +79,7 @@ class Executive:
         else:
             return False #False means default to chat
 
-def main():
+def main_text():
     print("Welcome to the Pico Assistant interface!")
     print("Type 'quit' to exit the chat.\n")
 
@@ -124,6 +102,7 @@ def main():
             if is_exec_needed(message_history[-1].get("content")):
                 executive = Executive("gpt-4")
                 agent_response = executive.identify_task(message_history[-1].get("content"))
+                #If executive decides chat agent is best after all, call chat.
                 if agent_response == False:
                     print("Pico: ", end='', flush=True)
                     gpt4_chat = Chat("gpt-4")
@@ -140,5 +119,55 @@ def main():
                 message_history.append({"role": "assistant", "content": response})
                 print(f"\n")
         
+def main_voice():
+    print("Welcome to the Pico Assistant interface!")
+    print("Type 'quit' to exit the chat.\n")
+
+    message_history = []
+    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. Your name is Pico. You can chat, send emails, and interact with Spotify"}]
+    message_history.append(system_message[0])
+    max_history = 10  # Adjust this value to limit the number of messages considered
+
+    recognizer = sr.Recognizer()
+
+    while True:
+        with sr.Microphone() as source:
+            print("Listening...")
+            audio = recognizer.listen(source)
+            try:
+                user_input = recognizer.recognize_google(audio)
+                print("You: " + user_input)
+                if user_input.lower() == 'quit':
+                    break
+                else:
+                    message_history.append({"role": "user", "content": user_input})
+                    if len(message_history) > max_history:
+                        message_history.insert(-max_history + 1, system_message[0])
+                    message_history = message_history[-max_history:]
+                    #Check user input, if executive is needed, call executive on user input and return result.
+                    if is_exec_needed(message_history[-1].get("content")):
+                        executive = Executive("gpt-4")
+                        agent_response = executive.identify_task(message_history[-1].get("content"))
+                        #If executive decides chat agent is best after all, call chat.
+                        if agent_response == False:
+                            print("Pico: ", end='', flush=True)
+                            gpt4_chat = Chat("gpt-4")
+                            response = gpt4_chat.stream_chat(message_history)
+                            message_history.append({"role": "assistant", "content": response})
+                            print(f"\n")
+                        else:
+                            print(agent_response)
+                    #If executive not needed, respond with chat.
+                    else:
+                        print("Pico: ", end='', flush=True)
+                        gpt4_chat = Chat("gpt-4")
+                        response = gpt4_chat.stream_chat(message_history)
+                        message_history.append({"role": "assistant", "content": response})
+                        print(f"\n")      
+            except sr.UnknownValueError:
+                print("Sorry, I couldn't understand your speech.")
+            except sr.RequestError:
+                print("Sorry, my speech recognition service has failed.")
+
 if __name__ == "__main__":
-    main()
+    main_text()

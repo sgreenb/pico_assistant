@@ -12,4 +12,6 @@ The design principle involves linking multiple LLM agents, simple functions and 
 7. Interact with IoT devices.
 8. Make phone calls on request.
 9. Implement gradio interface.
+10. Read PDFs and documents and answer questions about contents.
+11. Create and edit files (Python and text to start)
 

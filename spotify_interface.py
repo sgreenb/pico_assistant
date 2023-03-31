@@ -24,6 +24,7 @@ def open_spotify_windows():
     if not is_spotify_running():
         spotify_path = spotify_keys[2]
         os.startfile(spotify_path)
+        time.sleep(1) #unnecessary?
     else:
         pass
 
@@ -80,7 +81,7 @@ def play_top_result(query, client_id=spotify_keys[0], client_secret=spotify_keys
 
     try:
         sp.transfer_playback(device_id)
-        time.sleep(1)
+        time.sleep(1) #was 1 before
         if top_content_type == "track":
             sp.start_playback(device_id=device_id, uris=[top_content_uri])
         elif top_content_type == "artist":

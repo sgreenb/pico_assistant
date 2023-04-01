@@ -3,8 +3,6 @@ import time
 from email_interface import send_email
 from spotify_interface import spotify_agent
 from twilio_sms_interface import sms_agent
-import speech_recognition as sr
-from whisper import Whisper
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -119,56 +117,6 @@ def main_text():
                 response = gpt4_chat.stream_chat(message_history)
                 message_history.append({"role": "assistant", "content": response})
                 print(f"\n")
-        
-def main_voice():
-    print("Welcome to the Pico Assistant interface!")
-    print("Type 'quit' to exit the chat.\n")
-
-    message_history = []
-    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. Your name is Pico. You can chat, send emails, and interact with Spotify"}]
-    message_history.append(system_message[0])
-    max_history = 10  # Adjust this value to limit the number of messages considered
-
-    recognizer = sr.Recognizer()
-
-    while True:
-        with sr.Microphone() as source:
-            print("Listening...")
-            audio = recognizer.listen(source)
-            try:
-                user_input = recognizer.recognize_google(audio)
-                print("You: " + user_input)
-                if user_input.lower() == 'quit':
-                    break
-                else:
-                    message_history.append({"role": "user", "content": user_input})
-                    if len(message_history) > max_history:
-                        message_history.insert(-max_history + 1, system_message[0])
-                    message_history = message_history[-max_history:]
-                    #Check user input, if executive is needed, call executive on user input and return result.
-                    if is_exec_needed(message_history[-1].get("content")):
-                        executive = Executive("gpt-4")
-                        agent_response = executive.identify_task(message_history[-1].get("content"))
-                        #If executive decides chat agent is best after all, call chat.
-                        if agent_response == False:
-                            print("Pico: ", end='', flush=True)
-                            gpt4_chat = Chat("gpt-4")
-                            response = gpt4_chat.stream_chat(message_history)
-                            message_history.append({"role": "assistant", "content": response})
-                            print(f"\n")
-                        else:
-                            print(agent_response)
-                    #If executive not needed, respond with chat.
-                    else:
-                        print("Pico: ", end='', flush=True)
-                        gpt4_chat = Chat("gpt-4")
-                        response = gpt4_chat.stream_chat(message_history)
-                        message_history.append({"role": "assistant", "content": response})
-                        print(f"\n")      
-            except sr.UnknownValueError:
-                print("Sorry, I couldn't understand your speech.")
-            except sr.RequestError:
-                print("Sorry, my speech recognition service has failed.")
 
 if __name__ == "__main__":
     main_text()

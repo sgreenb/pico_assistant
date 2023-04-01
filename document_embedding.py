@@ -4,19 +4,84 @@ import PyPDF2
 import numpy as np
 from openai.embeddings_utils import cosine_similarity
 from scipy.spatial import distance_matrix
-from gpt_agents import Chat
+import docx
+from striprtf.striprtf import rtf_to_text
+from odf import text, teletype
+from odf.opendocument import load
+from pptx import Presentation
+import ebooklib
+from ebooklib import epub
+from bs4 import BeautifulSoup
+import warnings
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
 #Takes a path to a PDF and returns the text contents
-def pdf_to_text(pdf_file):
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
+def pdf_to_text(file_path):
+    pdf_reader = PyPDF2.PdfReader(file_path)
     text = ""
     for page_num in range(len(pdf_reader.pages)):
         page_obj = pdf_reader.pages[page_num]
         pages = page_obj.extract_text()
         text += pages
     return text
+
+def read_word_file(file_path):
+    doc = docx.Document(file_path)
+    full_text = []
+    for para in doc.paragraphs:
+        full_text.append(para.text)
+    return '\n'.join(full_text)
+
+def read_txt_file(file_path):
+    with open(file_path, 'r') as file:
+        text = file.read()
+    return text
+
+def read_rtf_file(file_path):
+    with open(file_path) as infile:
+        content = infile.read()
+        text = rtf_to_text(content)
+    return text
+
+def read_odt_file(file_path):
+    full_text = []
+    odt_doc = load(file_path)
+    paragraphs = odt_doc.getElementsByType(text.P)
+    for i in paragraphs:
+        paragraph = teletype.extractText(i)
+        full_text.append(paragraph)
+    return '\n'.join(full_text)
+
+def read_ppt_file(file_path):
+    prs = Presentation(file_path)
+    full_text = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                for paragraph in shape.text_frame.paragraphs:
+                    # Split text into words and join with a single space to remove extra whitespace
+                    text = ' '.join(paragraph.text.split())
+                    # Only append non-empty text
+                    if text.strip():
+                        full_text.append(text)
+    # Join paragraphs with a single newline
+    return '\n'.join(full_text)
+
+def read_epub_file(file_path):
+    # Filter out the ebooklib warning
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        book = epub.read_epub(file_path)
+    full_text = []
+    for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        soup = BeautifulSoup(item.get_content(), 'html.parser')
+        text = soup.get_text()
+        # Split text into words and join with a single space to remove extra whitespace
+        cleaned_text = ' '.join(text.split())
+        if cleaned_text.strip():
+            full_text.append(cleaned_text)
+    return '\n'.join(full_text)
 
 #Split the input text into smaller chunks of a specified size.
 def split_text(text, chunk_size):
@@ -122,8 +187,14 @@ def process_pdfs_and_create_csv(pdf_paths, csv_path, chunk_size=1000):
     write_embeddings_to_csv(all_embeddings, csv_path)
     return csv_path, all_chunks
 
-pdf_paths = ["./pdfs/living_in_the_light.pdf"]
-csv_path, text_chunks = process_pdfs_and_create_csv(pdf_paths, "./pdfs/living_in_the_light.csv", chunk_size=500)
-saved_embeds = read_embeddings_from_csv(csv_path)
-summary_chunks = summarize_text(saved_embeds, text_chunks, n=3)
-print(summary_chunks)
+#pdf_paths = ["./pdfs/living_in_the_light.pdf"]
+#csv_path, text_chunks = process_pdfs_and_create_csv(pdf_paths, "./pdfs/living_in_the_light.csv", chunk_size=500)
+#saved_embeds = read_embeddings_from_csv(csv_path)
+#summary_chunks = summarize_text(saved_embeds, text_chunks, n=3)
+#print(summary_chunks)
+
+print(read_epub_file("./pdfs/20000-Leagues-Under-the-Sea.epub"))
+
+
+
+

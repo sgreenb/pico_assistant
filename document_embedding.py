@@ -13,11 +13,12 @@ import ebooklib
 from ebooklib import epub
 from bs4 import BeautifulSoup
 import warnings
+import os
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
 #Takes a path to a PDF and returns the text contents
-def pdf_to_text(file_path):
+def read_pdf_file(file_path):
     pdf_reader = PyPDF2.PdfReader(file_path)
     text = ""
     for page_num in range(len(pdf_reader.pages)):
@@ -83,6 +84,19 @@ def read_epub_file(file_path):
             full_text.append(cleaned_text)
     return '\n'.join(full_text)
 
+def read_py_file(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return file.read()
+    
+def read_html_file(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        html_content = file.read()
+    soup = BeautifulSoup(html_content, "html.parser")
+    text = soup.get_text()
+    # Split text into words and join with a single space to remove extra whitespace
+    cleaned_text = ' '.join(text.split())
+    return cleaned_text
+
 #Split the input text into smaller chunks of a specified size.
 def split_text(text, chunk_size):
     text_chunks = []
@@ -123,6 +137,13 @@ def read_embeddings_from_csv(csv_path):
             embeddings.append(embedding)
     return embeddings
 
+def write_chunks_to_csv(chunks, csv_path):
+    with open(csv_path, "w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["chunk"])
+        for chunk in chunks:
+            writer.writerow([chunk])
+
 def calculate_centroid(embeddings):
     centroid = np.mean(embeddings, axis=0)
     return centroid
@@ -146,10 +167,8 @@ def search_embeddings(query, embeddings, n=3):
     """
     query_embedding = create_embeddings([query])[0]
     similarities = [cosine_similarity(embedding, query_embedding) for embedding in embeddings]
-
     # Get the indices of the top N most similar embeddings
     top_indices = np.argsort(similarities)[-n:][::-1]
-
     return top_indices.tolist()
 
 def retrieve_answer(indices, text_chunks, n=1):
@@ -179,7 +198,7 @@ def process_pdfs_and_create_csv(pdf_paths, csv_path, chunk_size=1000):
     all_chunks = []
     all_embeddings = []
     for pdf_path in pdf_paths:
-        text = pdf_to_text(pdf_path)
+        text = read_pdf_file(pdf_path)
         chunks = split_text(text, chunk_size)
         embeddings = create_embeddings(chunks)
         all_chunks.extend(chunks)
@@ -187,14 +206,37 @@ def process_pdfs_and_create_csv(pdf_paths, csv_path, chunk_size=1000):
     write_embeddings_to_csv(all_embeddings, csv_path)
     return csv_path, all_chunks
 
-#pdf_paths = ["./pdfs/living_in_the_light.pdf"]
-#csv_path, text_chunks = process_pdfs_and_create_csv(pdf_paths, "./pdfs/living_in_the_light.csv", chunk_size=500)
-#saved_embeds = read_embeddings_from_csv(csv_path)
-#summary_chunks = summarize_text(saved_embeds, text_chunks, n=3)
-#print(summary_chunks)
+def process_docs_and_create_csv(dir_path, embeddings_csv_path, chunks_csv_path, chunk_size=1000):
+    doc_paths = [os.path.join(dir_path, file) for file in os.listdir(dir_path)]
+    # Dictionary mapping file extensions to helper functions
+    file_handlers = {
+        ".doc": read_word_file,
+        ".docx": read_word_file,
+        ".ppt": read_ppt_file,
+        ".pptx": read_ppt_file,
+        ".epub": read_epub_file,
+        ".pdf": read_pdf_file,
+        ".rtf": read_rtf_file,
+        ".odt": read_odt_file,
+        ".py": read_py_file,
+        ".html": read_html_file,
+    }
+    all_chunks = []
+    all_embeddings = []
+    for doc_path in doc_paths:
+        # Check if the file extension is supported
+        file_extension = os.path.splitext(doc_path)[1]
+        if file_extension in file_handlers:
+            # Read the text content using the appropriate helper function
+            text = file_handlers[file_extension](doc_path)
+            chunks = split_text(text, chunk_size)
+            embeddings = create_embeddings(chunks)
+            all_chunks.extend(chunks)
+            all_embeddings.extend(embeddings)
+        else:
+            print(f"Skipping unsupported file type: {doc_path}")
+    write_embeddings_to_csv(all_embeddings, embeddings_csv_path)
+    write_chunks_to_csv(all_chunks, chunks_csv_path)
+    return embeddings_csv_path, chunks_csv_path
 
-print(read_epub_file("./pdfs/20000-Leagues-Under-the-Sea.epub"))
-
-
-
-
+process_docs_and_create_csv("./pdfs", "./pdfs/mixed_embeds.csv")

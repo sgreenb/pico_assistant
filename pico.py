@@ -3,14 +3,17 @@ import time
 from email_interface import send_email
 from spotify_interface import spotify_agent
 from twilio_sms_interface import sms_agent
+from text_to_speech import elevenlabs_tts, play_audio_content
+import threading
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
 #Chat agent
 class Chat:
-    def __init__(self, model):
+    def __init__(self, model, speech=True):
         openai.api_key = open("openai_key.txt", "r").read().strip("\n")
         self.model = model
+        self.speech = speech
     def __str__(self):
         name = "Chat Agent [" + self.model + "]"
         return name
@@ -30,12 +33,28 @@ class Chat:
             stream=True
         )
         reply_content = ''
+        chunk = ''
         for event in response:
-            print(reply_content, end='', flush=True)
             event_text = event['choices'][0]['delta']
-            reply_content = event_text.get('content', '')
+            new_text = event_text.get('content', '')
+            print(new_text, end='', flush=True)
+            reply_content += new_text
+            chunk += new_text
+            # Check if the chunk ends with a sentence-ending punctuation
+            if chunk and chunk[-1] in {'.', '!', '?'}:
+                if self.speech == True:
+                    audio_content = elevenlabs_tts(chunk)
+                    if audio_content is not None:
+                        play_audio_content(audio_content)
+                    chunk = ''
             time.sleep(delay_time)
-        return reply_content
+        # Call the ElevenLabs API for the remaining text if any
+        if self.speech == True:
+            if chunk:
+                audio_content = elevenlabs_tts(chunk)
+                if audio_content is not None:
+                    play_audio_content(audio_content)
+            return reply_content
 
 def is_exec_needed(prompt):
     keywords = [

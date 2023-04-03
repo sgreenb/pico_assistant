@@ -14,6 +14,7 @@ from ebooklib import epub
 from bs4 import BeautifulSoup
 import warnings
 import os
+import whisper
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -97,6 +98,11 @@ def read_html_file(file_path):
     cleaned_text = ' '.join(text.split())
     return cleaned_text
 
+def read_audio_file(file_path):
+    model = whisper.load_model("small")
+    result = model.transcribe(file_path)
+    return(result["text"])
+
 #Split the input text into smaller chunks of a specified size.
 def split_text(text, chunk_size):
     text_chunks = []
@@ -144,6 +150,15 @@ def write_chunks_to_csv(chunks, csv_path):
         for chunk in chunks:
             writer.writerow([chunk])
 
+def read_chunks_from_csv(csv_path):
+    chunks = []
+    with open(csv_path, "r", encoding="utf-8", newline="") as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader)  # Skip header row
+        for row in reader:
+            chunks.append(row[0])
+    return chunks
+
 def calculate_centroid(embeddings):
     centroid = np.mean(embeddings, axis=0)
     return centroid
@@ -171,7 +186,7 @@ def search_embeddings(query, embeddings, n=3):
     top_indices = np.argsort(similarities)[-n:][::-1]
     return top_indices.tolist()
 
-def retrieve_answer(indices, text_chunks, n=1):
+def retrieve_answer(indices, text_chunks, n=3):
     """
     Retrieve the most relevant text from the text chunks using the provided indices.
 
@@ -207,7 +222,7 @@ def process_pdfs_and_create_csv(pdf_paths, csv_path, chunk_size=1000):
     return csv_path, all_chunks
 
 def process_docs_and_create_csv(dir_path, embeddings_csv_path, chunks_csv_path, chunk_size=1000):
-    doc_paths = [os.path.join(dir_path, file) for file in os.listdir(dir_path)]
+    #doc_paths = [os.path.join(dir_path, file) for file in os.listdir(dir_path)]
     # Dictionary mapping file extensions to helper functions
     file_handlers = {
         ".doc": read_word_file,
@@ -220,23 +235,36 @@ def process_docs_and_create_csv(dir_path, embeddings_csv_path, chunks_csv_path, 
         ".odt": read_odt_file,
         ".py": read_py_file,
         ".html": read_html_file,
+        ".mp3": read_audio_file,
+        ".aac": read_audio_file,
+        ".flac": read_audio_file,
+        ".wav": read_audio_file,
+        ".ogg": read_audio_file,
+        ".wma": read_audio_file,
+        ".mp4": read_audio_file,
     }
     all_chunks = []
     all_embeddings = []
-    for doc_path in doc_paths:
-        # Check if the file extension is supported
-        file_extension = os.path.splitext(doc_path)[1]
-        if file_extension in file_handlers:
-            # Read the text content using the appropriate helper function
-            text = file_handlers[file_extension](doc_path)
-            chunks = split_text(text, chunk_size)
-            embeddings = create_embeddings(chunks)
-            all_chunks.extend(chunks)
-            all_embeddings.extend(embeddings)
-        else:
-            print(f"Skipping unsupported file type: {doc_path}")
-    write_embeddings_to_csv(all_embeddings, embeddings_csv_path)
-    write_chunks_to_csv(all_chunks, chunks_csv_path)
-    return embeddings_csv_path, chunks_csv_path
+    for root, _, files in os.walk(dir_path):
+        for file in files:
+            doc_path = os.path.join(root, file)
+            # Check if the file extension is supported
+            file_extension = os.path.splitext(doc_path)[1]
+            if file_extension in file_handlers:
+                # Read the text content using the appropriate helper function
+                text = file_handlers[file_extension](doc_path)
+                chunks = split_text(text, chunk_size)
+                embeddings = create_embeddings(chunks)
+                all_chunks.extend(chunks)
+                all_embeddings.extend(embeddings)
+            else:
+                print(f"Skipping unsupported file type: {doc_path}")
+        write_embeddings_to_csv(all_embeddings, embeddings_csv_path)
+        write_chunks_to_csv(all_chunks, chunks_csv_path)
+        return embeddings_csv_path, chunks_csv_path
 
-process_docs_and_create_csv("./pdfs", "./pdfs/mixed_embeds.csv")
+embedding_csv_path, chunks_csv_path = process_docs_and_create_csv("./docs", "./docs/embeds.csv", "./docs/chunks.csv")
+embedding_csv = read_embeddings_from_csv(embedding_csv_path)
+chunks_csv = read_chunks_from_csv(chunks_csv_path)
+index = search_embeddings("In Harry Potter when Ginny is fighting the death eater, Amycus, what spell does Harry use to attack him?", embedding_csv)
+print(retrieve_answer(index, chunks_csv))

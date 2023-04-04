@@ -4,7 +4,6 @@ from email_interface import send_email
 from spotify_interface import spotify_agent
 from twilio_sms_interface import sms_agent
 from text_to_speech import elevenlabs_tts, play_audio_content
-import threading
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -86,7 +85,9 @@ class Executive:
             model = self.model,
             temperature = 0,
             messages=[
-                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs. The spotify_agent can search for music or artists, play and pause songs, or go to the next song. You can output: ['send_email', 'spotify_agent', 'send_sms'] to fulfill a request, otherwise reply: 'chat'"},
+                    {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs.\
+                      The spotify_agent can search for music or artists, play and pause songs, or go to the next song. \
+                     You can output: ['send_email', 'spotify_agent', 'send_sms'] to fulfill a request, otherwise reply: 'chat'"},
                     {"role":"user", "content": prompt}
                     ] 
         )
@@ -102,7 +103,8 @@ def main_text():
     print("Type 'quit' to exit the chat.\n")
 
     message_history = []
-    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. Your name is Pico. You can chat, send emails, and interact with Spotify"}]
+    system_message = [{"role": "system", "content": "You are Pico. Pico is an AI assistant. \
+                       Your name is Pico. You can chat, send emails, and interact with Spotify"}]
     message_history.append(system_message[0])
     max_history = 10  # Adjust this value to limit the number of messages considered
 

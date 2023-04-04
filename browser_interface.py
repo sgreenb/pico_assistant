@@ -6,6 +6,11 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import openai
+
+#Based on https://arxiv.org/pdf/2303.17491.pdf
+
+openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
 def initialize_driver(url):
     # Initialize the webdriver (e.g., Chrome, Firefox, etc.)
@@ -96,7 +101,7 @@ def execute_instruction(instruction, driver):
     switch_to_default_content_regex = "^switchtodefaultcontent$"
 
     if re.match(type_regex, instruction):
-        target_input = instruction.split(" ")[1]
+        target_input = instruction[len("type "):]
         type_text(target_input, driver)
     elif re.match(press_regex, instruction):
         target_key = instruction.split(" ")[1]
@@ -130,25 +135,35 @@ def execute_instruction(instruction, driver):
     else:
         print("Invalid instruction:", instruction)
 
-# Initialize the driver
-driver = initialize_driver("https://www.google.com")
+def execute_instructions(instructions_list):
+    driver = ''
+    for instruction in instructions_list:
+        function_name = instruction["function"]
+        args = instruction["args"]
+        if function_name == "initialize_driver":
+            driver = initialize_driver(*args)
+        else:
+            formatted_instruction = f"{function_name} {' '.join(args)}"
+            execute_instruction(formatted_instruction, driver)
 
-# Wait for the search input box to be visible and clickable
-wait = WebDriverWait(driver, 10)
-search_input_xpath = "//input[@name='q']"
-search_input_box = wait.until(EC.element_to_be_clickable((By.XPATH, search_input_xpath)))
+def browser_agent(prompt):
+    completion = openai.ChatCompletion.create(
+    model = "gpt-4",
+            temperature = 0,
+            messages=[
+                    {"role":"system", "content": "You are a browser automation program that understands natural language requests.\
+                      Your goal is to convert user requests into a list of instructions for the 'execute_instruction()' function.\
+                      To initialize the driver, use the 'initialize_driver(url)' function, which takes a URL as its argument.\
+                      The 'execute_instruction()' function supports methods like type, press, clickxpath, clickoption, movemouse,\
+                      selectinput, navigate, scroll, scrolltoelement, switchtoframe, and switchtodefaultcontent. \
+                     Arguments should be single strings and use XPath expressions when applicable. \
+                     Format your response as a list of dictionaries, where each dictionary contains a 'function' key with the \
+                     function name and an 'args' key with a list of the function's arguments.\
+                      Ensure that there are no nested lists within the 'args' key."},
+                    {"role":"user", "content": prompt},
+                    ] 
+        )
+    reply_content = completion.choices[0].message.content
+    return reply_content
 
-# Select the search input box
-select_input_box(search_input_xpath, driver)
-
-# Type the phrase "Al pastor burrito near me"
-search_phrase = "Al pastor burrito near me"
-type_text(search_phrase, driver)
-
-# Press the "enter" key to submit the search query
-press_key("enter", driver)
-
-# Wait for the search results page to load (you can use an explicit wait if necessary)
-
-# Close the webdriver after the test is completed
-driver.quit()
+print(browser_agent("Please go to the Google website, and search for 'Burrito near me', don't forget any important steps."))

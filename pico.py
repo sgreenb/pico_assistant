@@ -4,6 +4,7 @@ from email_interface import send_email
 from spotify_interface import spotify_agent
 from twilio_sms_interface import sms_agent
 from text_to_speech import elevenlabs_tts, play_audio_content
+from document_embedding import doc_agent
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -59,7 +60,8 @@ def is_exec_needed(prompt):
     keywords = [
             "play", "spotify", "volume", "next", "next song", "pause", "resume", "unpause", "playing", "music", "song",
             "send an email", "email",
-            "sms", "text", "message"
+            "sms", "text", "message",
+            "analyze", "summarize", "folder", "directory"
     ]
     prompt = prompt.lower().strip()
     for keyword in keywords:
@@ -80,6 +82,7 @@ class Executive:
                 "send_email": send_email,
                 "spotify_agent": spotify_agent,
                 "send_sms": sms_agent,
+                "analyze_documents": doc_agent,
                 }
         completion = openai.ChatCompletion.create(
             model = self.model,
@@ -87,14 +90,14 @@ class Executive:
             messages=[
                     {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs.\
                       The spotify_agent can search for music or artists, play and pause songs, or go to the next song. \
-                     You can output: ['send_email', 'spotify_agent', 'send_sms'] to fulfill a request, otherwise reply: 'chat'"},
+                     You can output: ['send_email', 'spotify_agent', 'send_sms', 'analyze_documents'] to fulfill a request, otherwise reply: 'chat'"},
                     {"role":"user", "content": prompt}
                     ] 
         )
         reply_content = completion.choices[0].message.content
         if "send_email" or "spotify_agent" or "send_sms" in reply_content:
             agent_response = agent_dict[reply_content](prompt)
-            #return agent_response #Response is status recieved from agent attempting to a complete task.
+            return agent_response #Response is status recieved from agent attempting to a complete task.
         else:
             return False #False means default to chat
 
@@ -130,7 +133,8 @@ def main_text():
                     message_history.append({"role": "assistant", "content": response})
                     print(f"\n")
                 else:
-                    print(agent_response)
+                    print(agent_response) 
+                    #consider adding response to message history, need to add more useful agent responses.
             #If executive not needed, respond with chat.
             else:
                 print("Pico: ", end='', flush=True)

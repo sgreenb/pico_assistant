@@ -347,5 +347,3 @@ def doc_agent(prompt):
         query_with_context = str(query) + answer_chunk
         answer = query_agent(query_with_context)
         return answer
-
-print(doc_agent("Summarize the contents of angel folder"))

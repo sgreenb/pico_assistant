@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 import warnings
 import os
 import whisper
+import ast
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -263,8 +264,88 @@ def process_docs_and_create_csv(dir_path, embeddings_csv_path, chunks_csv_path, 
         write_chunks_to_csv(all_chunks, chunks_csv_path)
         return embeddings_csv_path, chunks_csv_path
 
-embedding_csv_path, chunks_csv_path = process_docs_and_create_csv("./docs", "./docs/embeds.csv", "./docs/chunks.csv")
-embedding_csv = read_embeddings_from_csv(embedding_csv_path)
-chunks_csv = read_chunks_from_csv(chunks_csv_path)
-index = search_embeddings("In Harry Potter when Ginny is fighting the death eater, Amycus, what spell does Harry use to attack him?", embedding_csv)
-print(retrieve_answer(index, chunks_csv))
+def check_embeds(folder):
+    embeds_path = os.path.join(folder, "embeds.csv")
+    return os.path.isfile(embeds_path)
+
+def folder_paths(directory):
+    paths = []
+    for foldername, subfolders, filenames in os.walk(directory):
+        paths.append(os.path.abspath(foldername))
+    return paths
+
+def summary_agent(prompt):
+    completion = openai.ChatCompletion.create(
+    model = "gpt-4",
+            temperature = 0.5,
+            messages=[
+                    {"role":"system", "content": "You give a brief summary of given text. \
+                     The summary should be concise, informative, and accuratly reflect the contents of the given text.\
+                     reply only with the summary itself."},
+                    {"role":"user", "content": prompt},
+                    ] 
+        )
+    reply_content = completion.choices[0].message.content
+    return reply_content
+
+def query_agent(prompt):
+    completion = openai.ChatCompletion.create(
+    model = "gpt-4",
+            temperature = 0.5,
+            messages=[
+                    {"role":"system", "content": "You answer a user's question, given some text as context to help\
+                     answer the question. The user request will be in the form of a list. The first item in the\
+                     list is the user's question, the other elements in the list will contain text relavent to \
+                     answering the question. Do not contradict the contents of the given text in your answer.\
+                     Reply only with the answer to the question."},
+                    {"role":"user", "content": prompt},
+                    ] 
+        )
+    reply_content = completion.choices[0].message.content
+    return reply_content
+
+def doc_agent(prompt):
+    prompt = prompt + " " + str(folder_paths("./docs"))
+    print(prompt) #testing
+    completion = openai.ChatCompletion.create(
+    model = "gpt-4",
+            temperature = 0,
+            messages=[
+                    {"role":"system", "content": "You take a user request about documents in a folder. \
+                     The request will refer to a folder name and contain a list of paths to folders provided\
+                      by another function. The user request will ask for a summary or contain specfic query.\
+                      You will respond only with a two item list. The first item in the list must be \
+                     'summarize' if the user requests a summary, or otherwise the query the user is making \
+                     about the documents. The second item in the list is the path to folder they are refering to."},
+                    {"role":"user", "content": prompt},
+                    ] 
+        )
+    reply_content = completion.choices[0].message.content
+    reply_list = ast.literal_eval(reply_content)
+    query = reply_list[0]
+    folder = reply_list[1]
+    print("folder: " + folder) #testing
+    embeds_csv_path = os.path.join(folder, "embeds.csv")
+    chunks_csv_path = os.path.join(folder, "chunks.csv")
+    print(embeds_csv_path) #testing
+    #check if embeddings have been made already, if not make them 
+    print(check_embeds(folder)) #testing
+    if check_embeds(folder) == False:
+        process_docs_and_create_csv(folder, embeds_csv_path, chunks_csv_path)
+        embeddings = read_embeddings_from_csv(embeds_csv_path)
+        chunks = read_chunks_from_csv(chunks_csv_path)
+    else:
+        embeddings = read_embeddings_from_csv(embeds_csv_path)
+        chunks = read_chunks_from_csv(chunks_csv_path)
+    if query == "summarize":
+        summary_chunk = " " + str(summarize_text(embeddings, chunks))
+        summary = summary_agent(summary_chunk)
+        return summary
+    else:
+        index = search_embeddings(query, embeddings)
+        answer_chunk = " " + str(retrieve_answer(index, chunks))
+        query_with_context = str(query) + answer_chunk
+        answer = query_agent(query_with_context)
+        return answer
+
+print(doc_agent("Summarize the contents of angel folder"))

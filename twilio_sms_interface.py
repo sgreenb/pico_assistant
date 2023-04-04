@@ -43,7 +43,8 @@ def sms_agent(prompt):
     model = "gpt-4",
             temperature = 0,
             messages=[
-                    {"role":"system", "content": "You identify the recipient, content of an sms to be sent based on a user request. The output must be in the format: 'recipient | sms text'"},
+                    {"role":"system", "content": "You identify the recipient, content of an sms to be sent based on a user request.\
+                      The output must be in the format: 'recipient | sms text'"},
                     {"role":"user", "content": prompt},
                     ] 
         )

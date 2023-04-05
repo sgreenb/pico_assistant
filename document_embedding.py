@@ -306,7 +306,6 @@ def query_agent(prompt):
 
 def doc_agent(prompt):
     prompt = prompt + " " + str(folder_paths("./docs"))
-    print(prompt) #testing
     completion = openai.ChatCompletion.create(
     model = "gpt-4",
             temperature = 0,
@@ -324,12 +323,9 @@ def doc_agent(prompt):
     reply_list = ast.literal_eval(reply_content)
     query = reply_list[0]
     folder = reply_list[1]
-    print("folder: " + folder) #testing
     embeds_csv_path = os.path.join(folder, "embeds.csv")
     chunks_csv_path = os.path.join(folder, "chunks.csv")
-    print(embeds_csv_path) #testing
     #check if embeddings have been made already, if not make them 
-    print(check_embeds(folder)) #testing
     if check_embeds(folder) == False:
         process_docs_and_create_csv(folder, embeds_csv_path, chunks_csv_path)
         embeddings = read_embeddings_from_csv(embeds_csv_path)

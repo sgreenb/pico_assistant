@@ -10,7 +10,7 @@ openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key f
 
 #Chat agent
 class Chat:
-    def __init__(self, model, speech=True):
+    def __init__(self, model, speech=False):
         openai.api_key = open("openai_key.txt", "r").read().strip("\n")
         self.model = model
         self.speech = speech

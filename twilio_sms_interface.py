@@ -27,7 +27,7 @@ def find_best_matching_contact(name, contacts):
         if similarity > best_similarity:
             best_similarity = similarity
             best_match = contact_name
-    return best_match if best_similarity > 0.3 else None
+    return best_match if best_similarity > 0.5 else None
 
 def send_sms(to, body):    
     client = Client(account_sid, auth_token)
@@ -49,8 +49,8 @@ def sms_agent(prompt):
                     ] 
         )
     reply_content = completion.choices[0].message.content
-    email_data = reply_content.strip().split('|')
-    to, body = email_data
+    sms_data = reply_content.strip().split('|')
+    to, body = sms_data
     to = to.strip()
     body = body.strip()
     if not any(char.isdigit() for char in to):

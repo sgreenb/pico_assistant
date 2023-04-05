@@ -3,10 +3,9 @@ from selenium.webdriver.common.keys import Keys
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 import time
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import openai
+import ast
 
 #Based on https://arxiv.org/pdf/2303.17491.pdf
 
@@ -135,8 +134,9 @@ def execute_instruction(instruction, driver):
     else:
         print("Invalid instruction:", instruction)
 
-def execute_instructions(instructions_list):
+def execute_instructions(instructions_list, wait):
     driver = ''
+    instructions_list = ast.literal_eval(instructions_list)
     for instruction in instructions_list:
         function_name = instruction["function"]
         args = instruction["args"]
@@ -145,6 +145,8 @@ def execute_instructions(instructions_list):
         else:
             formatted_instruction = f"{function_name} {' '.join(args)}"
             execute_instruction(formatted_instruction, driver)
+    time.sleep(wait)
+    driver.quit()
 
 def browser_agent(prompt):
     completion = openai.ChatCompletion.create(
@@ -159,11 +161,13 @@ def browser_agent(prompt):
                      Arguments should be single strings and use XPath expressions when applicable. \
                      Format your response as a list of dictionaries, where each dictionary contains a 'function' key with the \
                      function name and an 'args' key with a list of the function's arguments.\
-                      Ensure that there are no nested lists within the 'args' key."},
+                      Ensure that there are no nested lists within the 'args' key, and args that are not 'type' function are lowercase."},
                     {"role":"user", "content": prompt},
                     ] 
         )
     reply_content = completion.choices[0].message.content
     return reply_content
 
-print(browser_agent("Please go to the Google website, and search for 'Burrito near me', don't forget any important steps."))
+instructions = browser_agent("Please go to the Google website, and search for 'Burrito near me', don't forget any important steps.")
+print(instructions)
+execute_instructions(instructions, wait = 5)

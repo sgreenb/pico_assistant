@@ -14,4 +14,5 @@ The design principle involves linking multiple LLM agents, simple functions, and
 9. Implement gradio interface.
 10. Read PDFs and documents and answer questions about contents.
 11. Create and edit files (Python and text to start)
+12. Create a powerpoint presenation on a given subject, need to research, save files, generate summaries, generate script for presenation, collect or create images, organize images coherently.
 

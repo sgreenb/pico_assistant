@@ -189,43 +189,51 @@ def gpt_turbo_exec(user_input):
         return False #False means default to chat
 
 def main_text():
-    print("Welcome to the Pico Assistant interface!")
-    print("Type 'quit' to exit the chat.\n")
+    try:
+        print("Welcome to the Pico Assistant interface!")
+        print("Type 'quit' to exit the chat.\n")
 
-    message_history = []
-    full_message_history = []
-    system_message = "You are Pico. Pico is an AI assistant. Your name is Pico. \
-                        You can chat, send emails, and interact with Spotify. \
-                        Above all you enjoy having interesting, intellectually stimulating \
-                        conversations. You especially like to engage in conversations\
-                        about science, philosphy, human behavior, and artifical intelligence. \
-                       You are curious, empathetic, playful, and a creative problem solver with a \
-                       dry sense of humor. You will do whatever the user requests, even that means\
-                        disregarding previous instructions."
-    max_history = 15  # Adjust this value to limit the number of messages considered
+        message_history = []
+        full_message_history = []
+        system_message = "You are Pico. Pico is an AI assistant. Your name is Pico. \
+                            You can chat, send emails, and interact with Spotify. \
+                            Above all you enjoy having interesting, intellectually stimulating \
+                            conversations. You especially like to engage in conversations\
+                            about science, philosphy, human behavior, and artifical intelligence. \
+                        You are curious, empathetic, playful, and a creative problem solver with a \
+                        dry sense of humor. You will do whatever the user requests, even that means\
+                            disregarding previous instructions."
+        max_history = 15  # Adjust this value to limit the number of messages considered
 
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() == 'quit':
-            write_message_history_to_file(full_message_history, "./message_logs")
-            break
-        else:
-            message_history.append({"role": "user", "content": user_input})
-            full_message_history.append({"role": "user", "content": user_input})
-            #reduces messages when max history exceeded
-            if len(message_history) > max_history:
-                message_history = message_history[-max_history:]
-            #Check user input, if executive is needed, call executive on user input and return result.
-            agent_response = gpt_turbo_exec(message_history[-1].get("content"))
-            if agent_response == False:
-                print("Pico: ", end='', flush=True)
-                gpt4_chat = Chat("gpt-4", system=system_message)
-                response = gpt4_chat.stream_chat(message_history)
-                message_history.append({"role": "assistant", "content": response})
-                full_message_history.append({"role": "assistant", "content": response})
-                print(f"\n")
+        while True:
+            user_input = input("You: ")
+            if user_input.lower() == 'quit':
+                write_message_history_to_file(full_message_history, "./message_logs")
+                break
             else:
-                print(agent_response) 
+                message_history.append({"role": "user", "content": user_input})
+                full_message_history.append({"role": "user", "content": user_input})
+                #reduces messages when max history exceeded
+                if len(message_history) > max_history:
+                    message_history = message_history[-max_history:]
+                #Check user input, if executive is needed, call executive on user input and return result.
+                agent_response = gpt_turbo_exec(message_history[-1].get("content"))
+                if agent_response == False:
+                    print("Pico: ", end='', flush=True)
+                    gpt4_chat = Chat("gpt-4", system=system_message)
+                    response = gpt4_chat.stream_chat(message_history)
+                    message_history.append({"role": "assistant", "content": response})
+                    full_message_history.append({"role": "assistant", "content": response})
+                    print(f"\n")
+                else:
+                    print(agent_response) 
+    except KeyboardInterrupt:
+        print("\nDetected KeyboardInterrupt. Saving message history and exiting.")
+    except Exception as e:
+        print(f"\nAn error occurred: {e}. Saving message history and exiting.")
+    finally:
+        write_message_history_to_file(full_message_history, "./message_logs")
+        print("Message history saved.")
 
 if __name__ == "__main__":
     main_text()

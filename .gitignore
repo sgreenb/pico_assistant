@@ -6,3 +6,4 @@ token.json
 twilio_keys.txt
 elevenlabs_key.txt
 docs/
+message_logs/

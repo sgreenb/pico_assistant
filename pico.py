@@ -156,6 +156,38 @@ def gpt3_exec(user_input):
     else:
         return False #False means default to chat
 
+def gpt_turbo_exec(user_input):
+    completion = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        temperature = 0,
+        max_tokens=10,
+        messages = [
+                    {"role":"system", "content": "Analyze user input, and output the name of function to fullfil a user's needs.\
+                    The spotify_agent command can search for music or artists, play and pause songs, or go to the next song.\
+                    The send_email command will let a user send an email. The send_sms command will let a user send an SMS message.\
+                    The analyze_documents command will let a user analyze a document or the contents of a folder. \
+                    If none of these commands are needed, reply only with 'chat'. You are only allowed to output one command.\
+                    The only commands you are allowed to output are: 'spotify_agent', 'send_email', 'send_sms', \
+                    'analyze_documents', or 'chat'. Do not reply with any other output."},
+                    {"role":"user", "content": user_input}
+                    ] 
+        )
+    reply_content = completion.choices[0].message.content
+    if "spotify_agent" in reply_content:
+        agent_response = spotify_agent(user_input)
+        return agent_response
+    elif "send_email" in reply_content:
+        agent_response = send_email(user_input)
+        return agent_response
+    elif "send_sms" in reply_content:
+        agent_response = sms_agent(user_input)
+        return agent_response
+    elif "analyze_documents" in reply_content:
+        agent_response = doc_agent(user_input)
+        return agent_response
+    else:
+        return False #False means default to chat
+
 def main_text():
     print("Welcome to the Pico Assistant interface!")
     print("Type 'quit' to exit the chat.\n")
@@ -184,7 +216,7 @@ def main_text():
             if len(message_history) > max_history:
                 message_history = message_history[-max_history:]
             #Check user input, if executive is needed, call executive on user input and return result.
-            agent_response = gpt3_exec(message_history[-1].get("content"))
+            agent_response = gpt_turbo_exec(message_history[-1].get("content"))
             if agent_response == False:
                 print("Pico: ", end='', flush=True)
                 gpt4_chat = Chat("gpt-4", system=system_message)

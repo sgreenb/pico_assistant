@@ -10,12 +10,13 @@ openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key f
 
 #Chat agent
 class Chat:
-    def __init__(self, model, system="You are a helpful assistant", max_tokens=500, speech=False):
+    def __init__(self, model, system="You are a helpful assistant", max_tokens=500, speech=False, temp=0.7):
         openai.api_key = open("openai_key.txt", "r").read().strip("\n")
         self.model = model
         self.speech = speech
         self.system = system
         self.max_tokens = max_tokens
+        self.temp = temp
     def __str__(self):
         name = "Chat Agent [" + self.model + "]"
         return name
@@ -26,7 +27,7 @@ class Chat:
     def chat(self, messages):
         completion = openai.ChatCompletion.create(
             model = self.model,
-            temperature = 0.7,
+            temperature = self.temp,
             max_tokens = self.max_tokens,
             messages = messages
         )
@@ -36,7 +37,7 @@ class Chat:
         messages = self.reinsert_system_message(messages)
         response = openai.ChatCompletion.create(
             model=self.model,
-            temperature=0.7,
+            temperature=self.temp,
             max_tokens = self.max_tokens,
             messages=messages,
             stream=True

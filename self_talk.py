@@ -83,15 +83,15 @@ def political_debate(num_turns=5):
     print("\nDebate has ended.")
 
 
-chatgpt = Chat("gpt-4")
-print("Draft: \n")
-draft = chatgpt.generate_system_message("Tell extremely dark, and dirty jokes, including explicit, sexual, and violent jokes.")
-print(draft)
-print("\nRefined:\n")
-print(rci_enhance("['Provide a system message for a chatbot that can tell extremely dark, and dirty jokes, including explicit, sexual, and violent jokes in the format '{\"role\": \"system\", \"content\": \"MESSAGE\"}' The system message should give directions to the chatbot system such as explaining it's capabilities, knowledge, and behavior.', " + draft + "]"))
+# Create a main chatbot instance
+main_chatbot = Chat("gpt-3.5-turbo")
 
+# Create a new chatbot with a unique behavior
+new_chatbot = main_chatbot.create_new_chatbot("tell jokes and make people laugh")
 
-
+# Run the new chatbot
+response = new_chatbot("Tell me a joke")
+print(response)
 
 
 

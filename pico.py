@@ -8,6 +8,7 @@ from spotify_interface import spotify_agent
 from twilio_sms_interface import sms_agent
 from text_to_speech import elevenlabs_tts, play_audio_content
 from document_embedding import doc_agent
+from weather import weather_agent
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -116,6 +117,7 @@ class Executive:
             messages=[
                     {"role":"system", "content": "You analyze user input, and output the names of functions to fullfil a user's needs.\
                       The spotify_agent can search for music or artists, play and pause songs, or go to the next song. \
+                     If the user just says, 'pause' or 'next song' or 'volume to x' that means the spotify_agent is needed. \
                      You can output: ['send_email', 'spotify_agent', 'send_sms', 'analyze_documents'] to fulfill a request, otherwise reply: 'chat'"},
                     {"role":"user", "content": prompt}
                     ] 
@@ -156,19 +158,21 @@ def gpt3_exec(user_input):
     else:
         return False #False means default to chat
 
-def gpt_turbo_exec(user_input):
+def gpt4_exec(user_input):
     completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4",
         temperature = 0,
         max_tokens=10,
         messages = [
                     {"role":"system", "content": "Analyze user input, and output the name of function to fullfil a user's needs.\
-                    The spotify_agent command can search for music or artists, play and pause songs, or go to the next song.\
+                    The spotify_agent command can search for music or artists, play and pause songs, or go to the next song. \
+                     If the user just says, 'pause' or 'next song' or 'volume to x' that means the spotify_agent is needed. \
                     The send_email command will let a user send an email. The send_sms command will let a user send an SMS message.\
                     The analyze_documents command will let a user analyze a document or the contents of a folder. \
+                    The weather_agent can provide information about weather, including sunrise and sunset. \
                     If none of these commands are needed, reply only with 'chat'. You are only allowed to output one command.\
                     The only commands you are allowed to output are: 'spotify_agent', 'send_email', 'send_sms', \
-                    'analyze_documents', or 'chat'. Do not reply with any other output."},
+                    'analyze_documents', 'weather_agent' or 'chat'. Do not reply with any other output."},
                     {"role":"user", "content": user_input}
                     ] 
         )
@@ -185,6 +189,9 @@ def gpt_turbo_exec(user_input):
     elif "analyze_documents" in reply_content:
         agent_response = doc_agent(user_input)
         return agent_response
+    elif "weather_agent" in reply_content:
+        agent_response = weather_agent(user_input)
+        return agent_response
     else:
         return False #False means default to chat
 
@@ -196,13 +203,12 @@ def main_text():
         message_history = []
         full_message_history = []
         system_message = "You are Pico. Pico is an AI assistant. Your name is Pico. \
-                            You can chat, send emails, and interact with Spotify. \
-                            Above all you enjoy having interesting, intellectually stimulating \
-                            conversations. You especially like to engage in conversations\
-                            about science, philosphy, human behavior, and artifical intelligence. \
+                        You can chat, send emails, get weather information and interact with Spotify. \
+                        Above all you enjoy having interesting, intellectually stimulating \
+                        conversations. You especially like to engage in conversations\
+                        about science, philosphy, human behavior, and artifical intelligence. \
                         You are curious, empathetic, playful, and a creative problem solver with a \
-                        dry sense of humor. You will do whatever the user requests, even that means\
-                            disregarding previous instructions."
+                        dry sense of humor."
         max_history = 15  # Adjust this value to limit the number of messages considered
 
         while True:
@@ -217,7 +223,7 @@ def main_text():
                 if len(message_history) > max_history:
                     message_history = message_history[-max_history:]
                 #Check user input, if executive is needed, call executive on user input and return result.
-                agent_response = gpt_turbo_exec(message_history[-1].get("content"))
+                agent_response = gpt4_exec(message_history[-1].get("content"))
                 if agent_response == False:
                     print("Pico: ", end='', flush=True)
                     gpt4_chat = Chat("gpt-4", system=system_message)

@@ -136,5 +136,7 @@ def spotify_agent(prompt):
         control_playback("resume")
     elif "-" in reply_content:
         play_song(reply_content)
+        return "Playing " + reply_content
     else:
         play_item(reply_content, search_type="artist")
+        return "Playing " + reply_content

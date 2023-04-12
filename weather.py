@@ -80,7 +80,7 @@ def raw_weather_agent(prompt):
 
 def weather_summary_agent(prompt):
     completion = openai.ChatCompletion.create(
-    model = "gpt-4",
+    model = "gpt-3.5-turbo",
             temperature = 0,
             messages=[
                     {"role":"system", "content": "You receive a list. The first element is a user's query about the weather. \

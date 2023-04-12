@@ -165,12 +165,14 @@ def gpt4_exec(user_input):
         max_tokens=10,
         messages = [
                     {"role":"system", "content": "Analyze user input, and output the name of function to fullfil a user's needs.\
-                    The spotify_agent command can search for music or artists, play and pause songs, or go to the next song. \
-                     If the user just says, 'pause' or 'next song' or 'volume to x' that means the spotify_agent is needed. \
+                    The spotify_agent command can play and pause songs on the user's computer, or go to the next song. \
+                    If the user just says, 'pause' or 'next song' or 'volume to x' that means the spotify_agent is needed. \
+                    Only call the spotify_agent if the user actually want to play music, not just talk about it. \
                     The send_email command will let a user send an email. The send_sms command will let a user send an SMS message.\
                     The analyze_documents command will let a user analyze a document or the contents of a folder. \
                     The weather_agent can provide information about weather, including sunrise and sunset. \
-                    If none of these commands are needed, reply only with 'chat'. You are only allowed to output one command.\
+                    If none of these commands are needed, reply only with 'chat'. If it is unclear, reply with 'chat'\
+                    You are only allowed to output one command.\
                     The only commands you are allowed to output are: 'spotify_agent', 'send_email', 'send_sms', \
                     'analyze_documents', 'weather_agent' or 'chat'. Do not reply with any other output."},
                     {"role":"user", "content": user_input}
@@ -232,7 +234,10 @@ def main_text():
                     full_message_history.append({"role": "assistant", "content": response})
                     print(f"\n")
                 else:
-                    print(agent_response) 
+                    print("Pico: ")
+                    print(agent_response)
+                    message_history.append({"role": "assistant", "content": agent_response})
+                    full_message_history.append({"role": "assistant", "content": agent_response}) 
     except KeyboardInterrupt:
         print("\nDetected KeyboardInterrupt. Saving message history and exiting.")
     except Exception as e:

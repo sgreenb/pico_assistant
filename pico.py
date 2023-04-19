@@ -9,6 +9,7 @@ from twilio_sms_interface import sms_agent
 from text_to_speech import elevenlabs_tts, play_audio_content
 from document_embedding import doc_agent
 from weather import weather_agent
+from google_interface import google_agent
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -195,7 +196,8 @@ def gpt4_exec(user_input):
         agent_response = weather_agent(user_input)
         return agent_response
     else:
-        return False #False means default to chat
+        google_search_result = google_agent(user_input)
+        return google_search_result
 
 def main_text():
     try:
@@ -235,9 +237,18 @@ def main_text():
                     print(f"\n")
                 else:
                     print("Pico: ")
-                    print(agent_response)
-                    message_history.append({"role": "assistant", "content": agent_response})
-                    full_message_history.append({"role": "assistant", "content": agent_response}) 
+                    if isinstance(agent_response, list):  # Handling the case when the agent returns a list of responses
+                        for i, response in enumerate(agent_response):
+                            message_history.append(response)
+                            full_message_history.append(response)
+                            # Print only the most recent answer
+                            if i == len(agent_response) - 1:
+                                print(response["content"])
+                    else:  # Handling the case when the agent returns a single response (string)
+                        message_history.append({"role": "assistant", "content": agent_response})
+                        full_message_history.append({"role": "assistant", "content": agent_response})
+                        print(agent_response)
+
     except KeyboardInterrupt:
         print("\nDetected KeyboardInterrupt. Saving message history and exiting.")
     except Exception as e:

@@ -116,6 +116,18 @@ def split_text(text, chunk_size):
         start = end
     return text_chunks
 
+def split_text_lists(texts, chunk_size):
+    text_chunks = []
+    for text in texts:
+        text_length = len(text)
+        start = 0
+        while start < text_length:
+            end = start + chunk_size
+            chunk = text[start:end]
+            text_chunks.append(chunk)
+            start = end
+    return text_chunks
+
 def create_embeddings(text_chunks, model="text-embedding-ada-002"):
     embeddings = []
     try:
@@ -297,7 +309,7 @@ def query_agent(prompt):
                      answer the question. The user request will be in the form of a list. The first item in the\
                      list is the user's question, the other elements in the list will contain text relavent to \
                      answering the question. Do not contradict the contents of the given text in your answer.\
-                     Reply only with the answer to the question."},
+                     "},
                     {"role":"user", "content": prompt},
                     ] 
         )
@@ -336,10 +348,12 @@ def doc_agent(prompt):
     if query == "summarize":
         summary_chunk = " " + str(summarize_text(embeddings, chunks))
         summary = summary_agent(summary_chunk)
-        return summary
+        #return summary
+        return [{"role":"user", "content": prompt + " " + summary_chunk}, {"role":"assistant", "content":  summary}]
     else:
         index = search_embeddings(query, embeddings)
         answer_chunk = " " + str(retrieve_answer(index, chunks))
         query_with_context = str(query) + answer_chunk
         answer = query_agent(query_with_context)
-        return answer
+        #return answer
+        return [{"role":"user", "content": query_with_context}, {"role":"assistant", "content": answer}]

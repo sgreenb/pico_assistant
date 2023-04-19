@@ -133,7 +133,3 @@ def google_agent(prompt, cutoff=7):
         return [{"role":"user", "content": query_with_context}, {"role":"assistant", "content": response}]
     else:
         return False
-
-
-
-print(google_agent("What is the current price of one share of Apple stock?"))

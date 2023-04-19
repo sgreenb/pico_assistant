@@ -209,11 +209,8 @@ def main_text():
         system_message = "You are Pico. Pico is an AI assistant. Your name is Pico. \
                         You can chat, send emails, get weather information and interact with Spotify. \
                         Above all you enjoy having interesting, intellectually stimulating \
-                        conversations. You especially like to engage in conversations\
-                        about science, philosphy, human behavior, and artifical intelligence. \
-                        You are curious, empathetic, playful, and a creative problem solver with a \
-                        dry sense of humor."
-        max_history = 15  # Adjust this value to limit the number of messages considered
+                        conversations."
+        max_history = 20  # Adjust this value to limit the number of messages considered
 
         while True:
             user_input = input("You: ")
@@ -229,14 +226,14 @@ def main_text():
                 #Check user input, if executive is needed, call executive on user input and return result.
                 agent_response = gpt4_exec(message_history[-1].get("content"))
                 if agent_response == False:
-                    print("Pico: ", end='', flush=True)
+                    print("\nPico: ", end='', flush=True)
                     gpt4_chat = Chat("gpt-4", system=system_message)
                     response = gpt4_chat.stream_chat(message_history)
                     message_history.append({"role": "assistant", "content": response})
                     full_message_history.append({"role": "assistant", "content": response})
                     print(f"\n")
                 else:
-                    print("Pico: ")
+                    print("\nPico: ", end='')
                     if isinstance(agent_response, list):  # Handling the case when the agent returns a list of responses
                         for i, response in enumerate(agent_response):
                             message_history.append(response)

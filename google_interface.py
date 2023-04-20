@@ -2,7 +2,7 @@ from googlesearch import search
 import requests
 from bs4 import BeautifulSoup
 import openai
-from document_embedding import split_text_lists, create_embeddings, search_embeddings, retrieve_answer, query_agent
+from document_embedding import query_agent, query_agent_stream
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -44,12 +44,6 @@ def get_urls(query, num_results=1):
         print(e)
         return None
 
-   
-
-
-
-#print(google_agent("What is the current price of one share of Apple stock?"))
-
 def search_and_scrape(query):
     try:
         headers = {
@@ -70,7 +64,6 @@ def search_and_scrape(query):
     except Exception as e:
         print(f"Error fetching search results for query: {query}, error: {e}")
         return None
-
 
 def fetch_google_search_results(query, num_results=10, language="en", user_agent=None):
     url = f"https://www.google.com/search?q={query}&num={num_results}&hl={language}"
@@ -104,15 +97,10 @@ def parse_organic_results(html_content):
 
     return search_results
 
-def trim_text(text, start_string="results", length=1000):
-    start_index = text.find(start_string)
-    if start_index == -1:
-        return "Error: Start string not found"
-    start_index += len(start_string)
+def trim_text(text, start_index = 450, length=1500):
     return text[start_index:start_index + length]
 
-
-def google_agent(prompt, cutoff=7):
+def google_agent(prompt, cutoff=6):
     completion = openai.ChatCompletion.create(
     model = "gpt-4",
             temperature = 0,
@@ -129,7 +117,8 @@ def google_agent(prompt, cutoff=7):
     if google_probability >= cutoff:
         search_results = trim_text(search_and_scrape(prompt))
         query_with_context = prompt + str(search_results)
-        response = query_agent(query_with_context)
-        return [{"role":"user", "content": query_with_context}, {"role":"assistant", "content": response}]
+        print("\nPico: ", end='', flush=True)
+        response = query_agent_stream(query_with_context)
+        return response
     else:
         return False

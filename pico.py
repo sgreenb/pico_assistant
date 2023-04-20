@@ -6,7 +6,7 @@ from datetime import datetime
 from email_interface import send_email
 from spotify_interface import spotify_agent
 from twilio_sms_interface import sms_agent
-from text_to_speech import elevenlabs_tts, play_audio_content
+from text_to_speech import text_to_speech
 from document_embedding import doc_agent
 from weather import weather_agent
 from google_interface import google_agent
@@ -26,7 +26,7 @@ class Chat:
         name = "Chat Agent [" + self.model + "]"
         return name
     def reinsert_system_message(self, messages):
-        if messages[0].get("role") != "system":
+        if len(messages) == 0 or (len(messages) > 0 and messages[0].get("role") != "system"):
             messages.insert(0, {"role": "system", "content": self.system})
         return messages
     def chat(self, messages):
@@ -59,17 +59,12 @@ class Chat:
             # Check if the chunk ends with a sentence-ending punctuation
             if chunk and chunk[-1] in {'.', '!', '?'}:
                 if self.speech == True:
-                    audio_content = elevenlabs_tts(chunk)
-                    if audio_content is not None:
-                        play_audio_content(audio_content)
+                    text_to_speech(chunk)
                     chunk = ''
             time.sleep(delay_time)
         # Call the ElevenLabs API for the remaining text if any
         if self.speech == True:
-            if chunk:
-                audio_content = elevenlabs_tts(chunk)
-                if audio_content is not None:
-                    play_audio_content(audio_content)
+            text_to_speech(chunk)
             return reply_content
         return reply_content
 
@@ -171,11 +166,10 @@ def gpt4_exec(user_input):
                     Only call the spotify_agent if the user actually want to play music, not just talk about it. \
                     The send_email command will let a user send an email. The send_sms command will let a user send an SMS message.\
                     The analyze_documents command will let a user analyze a document or the contents of a folder. \
-                    The weather_agent can provide information about weather, including sunrise and sunset. \
                     If none of these commands are needed, reply only with 'chat'. If it is unclear, reply with 'chat'\
                     You are only allowed to output one command.\
                     The only commands you are allowed to output are: 'spotify_agent', 'send_email', 'send_sms', \
-                    'analyze_documents', 'weather_agent' or 'chat'. Do not reply with any other output."},
+                    'analyze_documents', or 'chat'. Do not reply with any other output."},
                     {"role":"user", "content": user_input}
                     ] 
         )
@@ -192,9 +186,6 @@ def gpt4_exec(user_input):
     elif "analyze_documents" in reply_content:
         agent_response = doc_agent(user_input)
         return agent_response
-    elif "weather_agent" in reply_content:
-        agent_response = weather_agent(user_input)
-        return agent_response
     else:
         google_search_result = google_agent(user_input)
         return google_search_result
@@ -203,14 +194,14 @@ def main_text():
     try:
         print("Welcome to the Pico Assistant interface!")
         print("Type 'quit' to exit the chat.\n")
-
+        speech = False
         message_history = []
         full_message_history = []
         system_message = "You are Pico. Pico is an AI assistant. Your name is Pico. \
                         You can chat, send emails, get weather information and interact with Spotify. \
                         Above all you enjoy having interesting, intellectually stimulating \
                         conversations."
-        max_history = 20  # Adjust this value to limit the number of messages considered
+        max_history = 100  # Adjust this value to limit the number of messages considered
 
         while True:
             user_input = input("You: ")
@@ -222,18 +213,18 @@ def main_text():
                 full_message_history.append({"role": "user", "content": user_input})
                 #reduces messages when max history exceeded
                 if len(message_history) > max_history:
-                    message_history = message_history[-max_history:]
+                    message_history = [message_history[0]] + message_history[-(max_history - 1):]  # Keep the system message and remove the second message
                 #Check user input, if executive is needed, call executive on user input and return result.
                 agent_response = gpt4_exec(message_history[-1].get("content"))
                 if agent_response == False:
                     print("\nPico: ", end='', flush=True)
-                    gpt4_chat = Chat("gpt-4", system=system_message)
+                    gpt4_chat = Chat("gpt-4", system=system_message, speech=speech)
                     response = gpt4_chat.stream_chat(message_history)
                     message_history.append({"role": "assistant", "content": response})
                     full_message_history.append({"role": "assistant", "content": response})
                     print(f"\n")
                 else:
-                    print("\nPico: ", end='')
+                    #print("\nPico: ", end='', flush=True)
                     if isinstance(agent_response, list):  # Handling the case when the agent returns a list of responses
                         for i, response in enumerate(agent_response):
                             message_history.append(response)
@@ -241,10 +232,15 @@ def main_text():
                             # Print only the most recent answer
                             if i == len(agent_response) - 1:
                                 print(response["content"])
+                                if speech == True:
+                                    text_to_speech(response["content"])
                     else:  # Handling the case when the agent returns a single response (string)
                         message_history.append({"role": "assistant", "content": agent_response})
                         full_message_history.append({"role": "assistant", "content": agent_response})
-                        print(agent_response)
+                        agent_response
+                        print(f"\n")
+                        if speech == True:
+                            text_to_speech(response["content"])
 
     except KeyboardInterrupt:
         print("\nDetected KeyboardInterrupt. Saving message history and exiting.")

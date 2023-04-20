@@ -32,3 +32,9 @@ def elevenlabs_tts(text, stability = 0.6, similarity_boost = 0.75):
 def play_audio_content(audio_content):
     audio = AudioSegment.from_file(io.BytesIO(audio_content), format="mp3")
     play(audio)
+
+def text_to_speech(text):
+    if text:
+        audio_content = elevenlabs_tts(text)
+        if audio_content is not None:
+            play_audio_content(audio_content)

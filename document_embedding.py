@@ -16,6 +16,8 @@ import warnings
 import os
 import whisper
 import ast
+import time
+from text_to_speech import text_to_speech
 
 openai.api_key = open("openai_key.txt", "r").read().strip("\n")  # get api key from text file
 
@@ -303,7 +305,7 @@ def summary_agent(prompt):
 def query_agent(prompt):
     completion = openai.ChatCompletion.create(
     model = "gpt-4",
-            temperature = 0.5,
+            temperature = 0,
             messages=[
                     {"role":"system", "content": "You answer a user's question, given some text as context to help\
                      answer the question. The user request will be in the form of a list. The first item in the\
@@ -314,6 +316,39 @@ def query_agent(prompt):
                     ] 
         )
     reply_content = completion.choices[0].message.content
+    return reply_content
+
+def query_agent_stream(prompt, delay_time=0.01, speech=False):
+    completion = openai.ChatCompletion.create(
+    model = "gpt-4",
+            temperature = 0,
+            stream=True,
+            messages=[
+                    {"role":"system", "content": "You answer a user's question, given some text as context to help\
+                     answer the question. The user request will be followed by the context. The context given is\
+                     from the user's Google search results, it is current and up to date.\
+                     Do not contradict the contents of the given text in your answer."},
+                    {"role":"user", "content": prompt},
+                    ] 
+        )
+    reply_content = ''
+    chunk = ''
+    for event in completion:
+        event_text = event['choices'][0]['delta']
+        new_text = event_text.get('content', '')
+        print(new_text, end='', flush=True)
+        reply_content += new_text
+        chunk += new_text
+        # Check if the chunk ends with a sentence-ending punctuation
+        if chunk and chunk[-1] in {'.', '!', '?'}:
+            if speech == True:
+                text_to_speech(chunk)
+                chunk = ''
+        time.sleep(delay_time)
+        # Call the ElevenLabs API for the remaining text if any
+    if speech == True:
+        text_to_speech(chunk)
+        return reply_content
     return reply_content
 
 def doc_agent(prompt):
